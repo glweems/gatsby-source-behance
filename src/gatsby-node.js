@@ -1,14 +1,15 @@
-const crypto = require(`crypto`);
-const axios = require(`axios`);
+const crypto = require(`crypto`)
+const axios = require(`axios`)
+const Promise = require('bluebird')
 
-const dict = arr => Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })));
+const dict = arr => Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })))
 
 // Transform the sizes and dimensions properties (these have numeral keys returned by the Behance API)
 const transformImage = imageObject => ({
   ...imageObject,
   sizes: dict(Object.entries(imageObject.sizes)),
   dimensions: dict(Object.entries(imageObject.dimensions)),
-});
+})
 
 // Transform the properties that have numbers as keys
 const transformProject = project => ({
@@ -19,11 +20,11 @@ const transformProject = project => ({
     images: dict(Object.entries(owner.images)),
   })),
   modules: project.modules.map(module => {
-    if (module.type === 'image') return transformImage(module);
-    if (module.type === 'media_collection') return { ...module, components: module.components.map(transformImage) };
-    return module;
+    if (module.type === 'image') return transformImage(module)
+    if (module.type === 'media_collection') return { ...module, components: module.components.map(transformImage) }
+    return module
   }),
-});
+})
 
 const transformAppreciation = appreciation => ({
   ...appreciation,
@@ -32,8 +33,8 @@ const transformAppreciation = appreciation => ({
     images: dict(Object.entries(owner.images)),
   })),
   covers: appreciation.project_covers.reduce((acc, cur, i) => {
-    acc[`size${i}`] = cur;
-    return acc;
+    acc[`size${i}`] = cur
+    return acc
   }, {}),
   projects: appreciation.latest_projects.map(project => ({
     ...project,
@@ -43,56 +44,56 @@ const transformAppreciation = appreciation => ({
     })),
     covers: dict(Object.entries(project.covers)),
   })),
-});
+})
 
 exports.sourceNodes = async ({ actions: { createNode } }, { username, apiKey }) => {
   if (!username || !apiKey) {
-    throw new Error('You need to define username and apiKey');
+    throw new Error('You need to define username and apiKey')
   }
 
   const axiosClient = axios.create({
     baseURL: `https://www.behance.net/v2/`,
-  });
+  })
 
   // Thanks to https://github.com/Jedidiah/gatsby-source-twitch/blob/master/src/gatsby-node.js
   // and https://stackoverflow.com/questions/43482639/throttling-axios-requests
-  const rateLimit = 500;
-  let lastCalled;
+  const rateLimit = 500
+  let lastCalled
 
   const rateLimiter = call => {
-    const now = Date.now();
+    const now = Date.now()
     if (lastCalled) {
-      lastCalled += rateLimit;
-      const wait = lastCalled - now;
+      lastCalled += rateLimit
+      const wait = lastCalled - now
       if (wait > 0) {
-        return new Promise(resolve => setTimeout(() => resolve(call), wait));
+        return new Promise(resolve => setTimeout(() => resolve(call), wait))
       }
     }
-    lastCalled = now;
-    return call;
-  };
+    lastCalled = now
+    return call
+  }
 
-  axiosClient.interceptors.request.use(rateLimiter);
+  axiosClient.interceptors.request.use(rateLimiter)
 
   const {
     data: { projects },
-  } = await axiosClient.get(`/users/${username}/projects?api_key=${apiKey}`);
+  } = await axiosClient.get(`/users/${username}/projects?api_key=${apiKey}`)
   const {
     data: { collections },
-  } = await axiosClient.get(`/users/${username}/collections?api_key=${apiKey}`);
+  } = await axiosClient.get(`/users/${username}/collections?api_key=${apiKey}`)
   const {
     data: { user },
-  } = await axiosClient.get(`/users/${username}?api_key=${apiKey}`);
-  const jsonStringUser = JSON.stringify(user);
+  } = await axiosClient.get(`/users/${username}?api_key=${apiKey}`)
+  const jsonStringUser = JSON.stringify(user)
 
   // Request detailed information about each project
-  const requests = projects.map(project => axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`));
-  const projectsDetailed = await Promise.all(requests).map(request => request.data.project);
+  const requests = projects.map(project => axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`))
+  const projectsDetailed = await Promise.all(requests).map(request => request.data.project)
 
   // Create node for each project
   projectsDetailed.map(async originalProject => {
-    const project = transformProject(originalProject);
-    const jsonString = JSON.stringify(project);
+    const project = transformProject(originalProject)
+    const jsonString = JSON.stringify(project)
 
     const projectListNode = {
       projectID: project.id,
@@ -130,13 +131,13 @@ exports.sourceNodes = async ({ actions: { createNode } }, { username, apiKey }) 
           .update(jsonString)
           .digest(`hex`),
       },
-    };
-    createNode(projectListNode);
-  });
+    }
+    createNode(projectListNode)
+  })
 
   collections.map(async originalAppreciation => {
-    const appreciation = transformAppreciation(originalAppreciation);
-    const jsonString = JSON.stringify(appreciation);
+    const appreciation = transformAppreciation(originalAppreciation)
+    const jsonString = JSON.stringify(appreciation)
 
     const appreciationNode = {
       projectID: appreciation.id,
@@ -172,9 +173,9 @@ exports.sourceNodes = async ({ actions: { createNode } }, { username, apiKey }) 
           .update(jsonString)
           .digest(`hex`),
       },
-    };
-    createNode(appreciationNode);
-  });
+    }
+    createNode(appreciationNode)
+  })
 
   const userNode = {
     userID: user.id,
@@ -209,6 +210,6 @@ exports.sourceNodes = async ({ actions: { createNode } }, { username, apiKey }) 
         .update(jsonStringUser)
         .digest(`hex`),
     },
-  };
-  createNode(userNode);
-};
+  }
+  createNode(userNode)
+}
