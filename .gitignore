@@ -58,5 +58,7 @@ typings/
 .env
 
 .idea
-gatsby-node.js
+./gatsby-node.js
 !/src/gatsby-node.js
+plugins/gatsby-source-behance/gatsby-node.js
+plugins/gatsby-source-behance/src/gatsby-node.js
