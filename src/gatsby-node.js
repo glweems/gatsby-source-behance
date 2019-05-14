@@ -1,9 +1,15 @@
 const crypto = require(`crypto`)
 const axios = require(`axios`)
+<<<<<<< HEAD
 const Promise = require(`bluebird`)
 
 const dict = arr =>
   Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })))
+=======
+const Promise = require('bluebird')
+
+const dict = arr => Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })))
+>>>>>>> master
 
 // Transform the sizes and dimensions properties (these have numeral keys returned by the Behance API)
 const transformImage = imageObject => ({
@@ -21,9 +27,14 @@ const transformProject = project => ({
     images: dict(Object.entries(owner.images)),
   })),
   modules: project.modules.map(module => {
+<<<<<<< HEAD
     if (module.type === `image`) return transformImage(module)
     if (module.type === `media_collection`)
       return { ...module, components: module.components.map(transformImage) }
+=======
+    if (module.type === 'image') return transformImage(module)
+    if (module.type === 'media_collection') return { ...module, components: module.components.map(transformImage) }
+>>>>>>> master
     return module
   }),
 })
@@ -53,7 +64,11 @@ exports.sourceNodes = async (
   { username, apiKey }
 ) => {
   if (!username || !apiKey) {
+<<<<<<< HEAD
     throw new Error(`You need to define username and apiKey`)
+=======
+    throw new Error('You need to define username and apiKey')
+>>>>>>> master
   }
 
   const axiosClient = axios.create({
@@ -92,12 +107,17 @@ exports.sourceNodes = async (
   const jsonStringUser = JSON.stringify(user)
 
   // Request detailed information about each project
+<<<<<<< HEAD
   const requests = projects.map(project =>
     axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`)
   )
   const projectsDetailed = await Promise.all(requests).map(
     request => request.data.project
   )
+=======
+  const requests = projects.map(project => axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`))
+  const projectsDetailed = await Promise.all(requests).map(request => request.data.project)
+>>>>>>> master
 
   // Create node for each project
   projectsDetailed.map(async originalProject => {
