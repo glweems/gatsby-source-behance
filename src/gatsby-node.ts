@@ -1,120 +1,173 @@
-"use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/camelcase */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable no-console */
 /* eslint-disable import/prefer-default-export */
-const crypto = require("crypto");
-const axios = require("axios");
-const slugify = require("slugify");
-const bluebird_1 = require("bluebird");
-const fs = require("fs");
-const request = require("request");
-const progress = require("request-progress");
-const sluggy = (string) => slugify(string.toLowerCase());
-const dict = arr => Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })));
+import * as crypto from 'crypto';
+import * as axios from 'axios';
+import * as slugify from 'slugify';
+import { Promise } from 'bluebird';
+import * as fs from 'fs';
+import * as request from 'request';
+import * as progress from 'request-progress';
+
+const sluggy = (string: string): string => slugify(string.toLowerCase())
+
+
+const dict = arr =>
+    Object.assign(...arr.map(([k, v]) => ({ [`size_${k}`]: v })))
+
 // Transform the sizes and dimensions properties (these have numeral keys returned by the Behance API)
-const transformImage = imageObject => (Object.assign({}, imageObject, { sizes: dict(Object.entries(imageObject.sizes)), dimensions: dict(Object.entries(imageObject.dimensions)) }));
+const transformImage = imageObject => ({
+    ...imageObject,
+    sizes: dict(Object.entries(imageObject.sizes)),
+    dimensions: dict(Object.entries(imageObject.dimensions)),
+})
+
 // Transform the properties that have numbers as keys
-const transformProject = project => (Object.assign({}, project, { covers: dict(Object.entries(project.covers)), owners: project.owners.map(owner => (Object.assign({}, owner, { images: dict(Object.entries(owner.images)) }))), modules: project.modules.map(module => {
-        if (module.type === `image`)
-            return transformImage(module);
+const transformProject = project => ({
+    ...project,
+    covers: dict(Object.entries(project.covers)),
+    owners: project.owners.map(owner => ({
+        ...owner,
+        images: dict(Object.entries(owner.images)),
+    })),
+    modules: project.modules.map(module => {
+        if (module.type === `image`) return transformImage(module)
         if (module.type === `media_collection`)
-            return Object.assign({}, module, { components: module.components.map(transformImage) });
-        return module;
-    }) }));
-exports.sourceNodes = ({ actions: { createNode }, reporter }, { username, apiKey, folder = './behance' }) => __awaiter(this, void 0, void 0, function* () {
+            return { ...module, components: module.components.map(transformImage) }
+        return module
+    }),
+})
+
+interface Options {
+    username: string;
+    apiKey: string;
+    folder: fs.PathLike;
+}
+
+export const sourceNodes = async (
+    { actions: { createNode }, reporter }: any,
+    { username, apiKey, folder = './behance' }: Options) => {
+
     // Throw error if no username / apiKey
     if (!username || !apiKey) {
         throw new Error('You need to define username and apiKey');
     }
+
     // const activity = reporter.activityTimer(`Getting Data From Behance`)
+
     // activity.start()
-    const shouldIWrite = (path) => {
+
+    const shouldIWrite = (path: fs.PathLike): void => {
         if (!fs.existsSync(path)) {
             fs.mkdirSync(path);
             reporter.log(path, `Created Directory`);
-        }
-        else {
+        } else {
             reporter.info(path, `Already created`);
         }
     };
+
     // Should I create base dir
     shouldIWrite(folder);
+
     const axiosClient = axios.create({
         baseURL: 'https://www.behance.net/v2/',
     });
+
     const rateLimit = 500;
-    let lastCalled;
-    const rateLimiter = (call) => {
+    let lastCalled: number;
+
+    const rateLimiter = (call: unknown) => {
         const now = Date.now();
         if (lastCalled) {
             lastCalled += rateLimit;
             const wait = lastCalled - now;
             if (wait > 0) {
-                return new bluebird_1.Promise(resolve => setTimeout(() => resolve(call), wait));
+                return new Promise(resolve => setTimeout(() => resolve(call), wait));
             }
         }
         lastCalled = now;
         return call;
     };
+
     axiosClient.interceptors.request.use(rateLimiter);
-    const { data: { projects }, } = yield axiosClient.get(`/users/${username}/projects?api_key=${apiKey}`);
-    const { data: { user }, } = yield axiosClient.get(`/users/${username}?api_key=${apiKey}`);
+
+
+    const {
+        data: { projects },
+    } = await axiosClient.get(`/users/${username}/projects?api_key=${apiKey}`);
+
+
+    const {
+        data: { user },
+    } = await axiosClient.get(`/users/${username}?api_key=${apiKey}`);
+
     const jsonStringUser = JSON.stringify(user);
+
     // Request detailed information about each project
-    const requests = projects.map((project) => axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`));
-    const projectsDetailed = yield bluebird_1.Promise.all(requests).map(({ data: { project } }) => project);
+    const requests = projects.map((project: { id: string }) =>
+        axiosClient.get(`/projects/${project.id}?api_key=${apiKey}`));
+
+
+
+    const projectsDetailed = await Promise.all(requests).map(({ data: { project } }: any) => project);
+
     // Create node for each project
-    projectsDetailed.map((originalProject) => __awaiter(this, void 0, void 0, function* () {
+    projectsDetailed.map(async (originalProject: any) => {
         const project = transformProject(originalProject);
         const jsonString = JSON.stringify(project);
-        const slug = sluggy(project.name);
-        const dest = `${slug}-cover.jpg`;
-        const download = (url, file) => progress(request(url), {})
-            .on('progress', (state) => {
-            // reporter.info(dest, state.time.elapsed);
+        const slug: string = sluggy(project.name);
+        const dest: fs.PathLike = `${slug}-cover.jpg`;
+
+        const download = (url: string, file: fs.PathLike) => progress(request(url), {
         })
-            .on('error', (err) => {
-            // reporter.error(err.message);
-        })
+            .on('progress', (state: { time: { elapsed: any } }) => {
+                // reporter.info(dest, state.time.elapsed);
+            })
+            .on('error', (err: Error) => {
+                // reporter.error(err.message);
+            })
             .on('end', () => {
-            // reporter.info(`Downloaded: ${file}`);
-        })
+                // reporter.info(`Downloaded: ${file}`);
+            })
             .pipe(fs.createWriteStream(`${folder}/${file}`));
+
+
+
+
         if (!fs.existsSync(dest)) {
             download(project.covers.size_original, dest);
             // activity.setStatus(dest, 'Downloaded');
-        }
-        else {
+        } else {
             // activity.setStatus(dest, 'Already downloaded');
         }
+
         // activity.setStatus(dest, 'Covers Downloaded');
+
+
+
+
         project.modules.map(({ sizes }, i) => {
             // activity.setStatus('Downloading Project Images');
-            const fileName = `${folder}/${slug}-${i}.jpg`;
+            const fileName = `${folder}/${slug}-${i}.jpg`
             if (!sizes || sizes === null || sizes === undefined) {
-                return;
+                return
             }
-            const { size_original } = sizes;
+            const { size_original } = sizes
+
             if (!fs.existsSync(fileName)) {
                 download(size_original, `${slug}-${i}.jpg`);
                 // activity.setStatus(fileName, 'Downloaded');
-            }
-            else {
+            } else {
                 // activity.setStatus(fileName, 'Already Downloaded');
             }
-        });
+        })
+
+
         // activity.end()
+
+
         const projectListNode = {
             projectID: project.id,
             slug,
@@ -155,7 +208,9 @@ exports.sourceNodes = ({ actions: { createNode }, reporter }, { username, apiKey
             },
         };
         createNode(projectListNode);
-    }));
+    });
+
+
     const userNode = {
         userID: user.id,
         names: {
@@ -191,6 +246,8 @@ exports.sourceNodes = ({ actions: { createNode }, reporter }, { username, apiKey
         },
     };
     createNode(userNode);
+
+
     /* collections.map(async originalAppreciation => {
 const appreciation = transformAppreciation(originalAppreciation)
 const jsonString = JSON.stringify(appreciation)
@@ -232,5 +289,4 @@ contentDigest: crypto
 }
 createNode(appreciationNode)
 }) */
-});
-//# sourceMappingURL=gatsby-node.js.map
+};

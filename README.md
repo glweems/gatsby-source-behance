@@ -1,175 +1,49 @@
-# gatsby-source-behance
-> Gatsby.js source plugin for loading information from Behance
+# Gatsby-source-facebook-graphql
 
-Learn more about [Gatsby](https://www.gatsbyjs.org/) and its plugins here: [https://www.gatsbyjs.org/docs/plugins/](https://www.gatsbyjs.org/docs/plugins/)
-
-**See it in live action on the [example site](https://behance-example.netlify.com/)!**
-[Source Code](https://github.com/LeKoArts/gatsby-source-behance-example) for the example site.
+A Gatsby source plugin for sourcing data into your Gatsby application from Facebooks graph API.
 
 ## Install
 
-```bash
-npm install gatsby-source-behance
-```
+`npm install --save gatsby-source-facebook`
 
-## How to use
+or
 
-```Javascript
+`yarn add gatsby-source-facebook-graphql`
+
+## How to use:
+
+```javascript
 // In your gatsby-config.js
-plugins: [
+module.exports = {
+  plugins: [
     {
-        resolve: `gatsby-source-behance`,
-        options: {
-            // Visit your profile and grab the name after behance.net/<< username >>
-            username: '<< Your username >>',
-            // You can get your API Key here: https://www.behance.net/dev/register
-            apiKey: '<< API Key >>',
-        }
-    }
-]
-```
-
-## GraphQL Queries
-
-To see all possible queries please use the GraphiQL editor which is available under ``http://localhost:8000/___graphql``
-
-### Get all projects (of the user specified in the config):
-
-```graphql
-{
-    allBehanceProjects {
-        edges {
-            node {
-                name
-                projectID
-                published
-                created
-                modified
-                conceived
-                url
-                privacy
-                areas
-                tags
-                description
-                tools
-                styles
-                covers {
-                    size_original
-                }
-                owners
-                stats {
-                    views
-                    appreciations
-                    comments
-                }
-                modules {
-                    sizes {
-                        size_original
-                    }
-                }
-            }
-        }
-    }
-}
-```
-_This example query fetches the information about the project and the respective images the project has_
-
-### Get all user information:
-
-```graphql
-{
-    behanceUser {
-        names {
-            displayName
-            firstName
-            lastName
-            username
-        }
-        userID
-        url
-        website
-        avatar
-        company
-        place {
-            city
-            state
-            country
-            location
-        }
-        areas
-        stats {
-            followers
-            following
-            appreciations
-            views
-            comments
-            team_members
-        }
-        links {
-            title
-            url
-        }
-        sections
-        socialMedia {
-            social_id
-            url
-            service_name
-            value
-        }
-    }
-}
-```
-
-### Get all collections (of the user specified in the config):
-
-```graphql
-{
-    allBehanceAppreciations {
-        edges {
-            node {
-                id
-                projectID
-                name
-                projectCount
-                data
-                public
-                created
-                updated
-                modified
-                url
-                covers {
-                    size2 {
-                        url
-                    }
-                    size3 {
-                        url
-                    }
-                }
-                owners {
-                    username
-                    city
-                }
-                isOwner
-                isCoOwner
-                multipleOwners
-                galleryText
-                stats
-                creatorID
-                userID
-                projects {
-                    id
-                    name
-                    published_on
-                    created_on
-                    modified_on
-                    url
-                    fields
-                    covers {
-                        size_original
-                    }
-                }
-            }
-        }
-    }
+      resolve: `gatsby-source-facebook-graphql`,
+      options: {
+        // Facebook account or page ID
+        pageId: 1690402924350633,
+        params: {
+          fields: [
+            'about',
+            'bio',
+            'category',
+            'category_list',
+            'company_overview',
+            'features',
+            'hours',
+            'phone',
+            'location',
+            'username',
+            'description',
+            'products',
+            'photos{webp_images}',
+            'rating_count',
+            'place_type',
+          ],
+        },
+        // Access Token from facebook
+        accessToken: process.env.GATSBY_FACEBOOK_GRAPH_TOKEN,
+      },
+    },
+  ],
 }
 ```
